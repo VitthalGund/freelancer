@@ -8,7 +8,7 @@ from collections import defaultdict
 # keep your scoring helpers here; ensure utils/scoring.py exports these
 from utils.scoring import freelancer_credibility_score, company_risk_score, edge_strength_from_history
 
-DATA_DIR = r"C:\Users\ankus\.gemini\antigravity\scratch\saksham-os\bubble-chart\data"
+DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "data")
 # adjust if your CSVs are in a subfolder
 
 # Filenames (match the CSVs you uploaded)

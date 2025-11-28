@@ -8,7 +8,7 @@ export async function extractTextFromBuffer(buffer: Buffer, mimeType: string): P
         return new Promise((resolve, reject) => {
             const rows: any = {}; // indexed by y-coordinate
             let text = '';
-            
+
             new PdfReader().parseBuffer(buffer, (err: any, item: any) => {
                 if (err) {
                     reject(err);
@@ -17,7 +17,7 @@ export async function extractTextFromBuffer(buffer: Buffer, mimeType: string): P
                     const sortedRows = Object.keys(rows)
                         .sort((a, b) => parseFloat(a) - parseFloat(b))
                         .map(y => rows[y]);
-                    
+
                     text = sortedRows.join('\n');
                     resolve(text);
                 } else if (item.text) {
@@ -98,4 +98,121 @@ export async function analyzeResumeWithGemini(text: string): Promise<ResumeAnaly
             summary: "Could not analyze resume."
         };
     }
+}
+
+// --- Helper Constants & Functions for Local Analysis ---
+
+export const JOB_ROLES: Record<string, { required_skills: string[]; good_to_have: string[] }> = {
+    "Frontend Developer": {
+        required_skills: ["React", "JavaScript", "TypeScript", "HTML", "CSS"],
+        good_to_have: ["Next.js", "Tailwind", "Redux", "GraphQL"]
+    },
+    "Backend Developer": {
+        required_skills: ["Node.js", "Python", "Database", "SQL", "API"],
+        good_to_have: ["AWS", "Docker", "Kubernetes", "Microservices"]
+    },
+    "Full Stack Developer": {
+        required_skills: ["React", "Node.js", "Database", "API"],
+        good_to_have: ["Next.js", "TypeScript", "AWS", "Docker"]
+    },
+    "Data Scientist": {
+        required_skills: ["Python", "SQL", "Machine Learning", "Data Analysis"],
+        good_to_have: ["Pandas", "NumPy", "TensorFlow", "PyTorch"]
+    },
+    "DevOps Engineer": {
+        required_skills: ["Docker", "Kubernetes", "CI/CD", "Linux"],
+        good_to_have: ["AWS", "Terraform", "Ansible", "Bash"]
+    }
+};
+
+export function extractSkills(text: string): Record<string, string[]> {
+    const foundSkills: Record<string, string[]> = {
+        "Languages": [],
+        "Frameworks": [],
+        "Tools": [],
+        "Core": []
+    };
+
+    const textLower = text.toLowerCase();
+
+    // Simple keyword list for demonstration - in a real app this would be more comprehensive
+    const commonSkills = {
+        "Languages": ["javascript", "typescript", "python", "java", "c++", "go", "ruby", "php", "html", "css", "sql"],
+        "Frameworks": ["react", "next.js", "vue", "angular", "node.js", "express", "django", "flask", "spring", "laravel"],
+        "Tools": ["git", "docker", "kubernetes", "aws", "azure", "gcp", "jenkins", "jira"],
+        "Core": ["agile", "scrum", "testing", "debugging", "system design"]
+    };
+
+    for (const [category, skills] of Object.entries(commonSkills)) {
+        for (const skill of skills) {
+            if (textLower.includes(skill)) {
+                // Capitalize for display
+                const displaySkill = skill.charAt(0).toUpperCase() + skill.slice(1);
+                foundSkills[category].push(displaySkill);
+            }
+        }
+    }
+
+    return foundSkills;
+}
+
+export function analyzeExperience(text: string): string[] {
+    // Simple extraction of lines that might look like experience
+    // Looking for lines with years like 20xx-20xx or Present
+    const lines = text.split('\n');
+    const experienceLines: string[] = [];
+    const datePattern = /\b(20\d{2}|19\d{2})\s*(-|to)\s*(20\d{2}|19\d{2}|Present|Current)\b/i;
+
+    for (const line of lines) {
+        if (datePattern.test(line) && line.length < 100) {
+            experienceLines.push(line.trim());
+        }
+    }
+    return experienceLines;
+}
+
+export function analyzeEducation(text: string): string[] {
+    const lines = text.split('\n');
+    const educationLines: string[] = [];
+    const keywords = ["bachelor", "master", "phd", "degree", "university", "college", "b.tech", "m.tech", "b.sc", "m.sc"];
+
+    for (const line of lines) {
+        if (keywords.some(k => line.toLowerCase().includes(k)) && line.length < 100) {
+            educationLines.push(line.trim());
+        }
+    }
+    return educationLines;
+}
+
+export function suggestRoleMatch(skills: Record<string, string[]>): Record<string, number> {
+    const allFoundSkills = new Set(Object.values(skills).flat().map(s => s.toLowerCase()));
+    const matches: Record<string, number> = {};
+
+    for (const [role, requirements] of Object.entries(JOB_ROLES)) {
+        let score = 0;
+        const totalReq = requirements.required_skills.length;
+        const totalGood = requirements.good_to_have.length;
+
+        let reqMatches = 0;
+        for (const req of requirements.required_skills) {
+            if (allFoundSkills.has(req.toLowerCase())) reqMatches++;
+        }
+
+        let goodMatches = 0;
+        for (const good of requirements.good_to_have) {
+            if (allFoundSkills.has(good.toLowerCase())) goodMatches++;
+        }
+
+        // Weighted score: Required skills worth more
+        if (totalReq > 0) {
+            score += (reqMatches / totalReq) * 70;
+        }
+        if (totalGood > 0) {
+            score += (goodMatches / totalGood) * 30;
+        }
+
+        matches[role] = Math.round(score);
+    }
+
+    return matches;
 }
