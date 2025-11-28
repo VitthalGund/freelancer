@@ -14,7 +14,7 @@ import dbConnect from "@/lib/db";
 import { redirect } from "next/navigation";
 
 export default async function DashboardPage() {
-  const session = await getServerSession(authOptions as any);
+  const session: any = await getServerSession(authOptions as any);
   if (!session) {
       redirect("/auth/login");
   }
