@@ -37,6 +37,11 @@ const NotificationSchema = new mongoose.Schema({
     required_hours_estimate: Number,
     deadline: String,
     job_status: String,
+    
+    // Metadata for actionable notifications (Smart Split, etc.)
+    metadata: {
+        type: mongoose.Schema.Types.Mixed, // Flexible object
+    },
 
     createdAt: {
         type: Date,

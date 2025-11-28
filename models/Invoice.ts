@@ -24,6 +24,15 @@ const InvoiceSchema = new mongoose.Schema({
     status: { type: String, enum: ["PAID", "OVERDUE", "PARTIAL", "PENDING", "DRAFT"], default: "DRAFT" },
     days_overdue: { type: Number, default: 0 },
     communication_history: [CommunicationHistorySchema],
+    
+    // Draft Nudge for Collections Agent
+    draft_nudge: {
+        subject: String,
+        body: String,
+        status: { type: String, enum: ["waiting_approval", "approved", "sent", "rejected"], default: "waiting_approval" },
+        generated_at: { type: Date }
+    },
+
     last_communication_at: { type: Date },
     invoice_tags: { type: String },
     created_at: { type: Date, default: Date.now },

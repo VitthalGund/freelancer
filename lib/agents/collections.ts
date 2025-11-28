@@ -1,5 +1,6 @@
 // lib/agents/collections.ts
 import { callGemini } from "./ai-client";
+import Invoice from "@/models/Invoice";
 
 export type InvoiceRow = {
     invoice_id: string;
@@ -37,6 +38,9 @@ export function shouldActOnInvoice(invoice: InvoiceRow) {
     return false;
 }
 
+/**
+ * Main handler: onInvoiceAging -> returns action (send message or escalate)
+ */
 /**
  * Main handler: onInvoiceAging -> returns action (send message or escalate)
  */
@@ -86,6 +90,26 @@ Return subject (one line) and body separated by a blank line.
     const [subject, ...bodyParts] = aiText.split(/\n\n/);
     const body = bodyParts.join("\n\n").trim() || aiText;
 
+    // Update Invoice with draft nudge
+    try {
+        await Invoice.findOneAndUpdate(
+            { invoice_id: invoice.invoice_id },
+            {
+                $set: {
+                    draft_nudge: {
+                        subject: subject.replace("Subject: ", "").trim(),
+                        body: body,
+                        status: "waiting_approval",
+                        generated_at: new Date()
+                    }
+                }
+            }
+        );
+        console.log(`Collections Agent: Draft nudge saved for Invoice ${invoice.invoice_id}`);
+    } catch (e) {
+        console.error("Failed to update invoice with draft nudge:", e);
+    }
+
     if (level === "legal") {
         return {
             type: "escalate_to_legal",
@@ -102,12 +126,14 @@ Return subject (one line) and body separated by a blank line.
     const followupISO = followupDays > 0 ? new Date(Date.now() + followupDays * 24 * 3600 * 1000).toISOString() : "";
 
     return {
-        type: "send_message",
+        success: true,
+        action: "draft_saved",
+        type: "send_message", // Keeping for compatibility if needed
         channel,
         to: invoice.client_id || invoice.company_id || "unknown",
         subject,
         body,
         invoice_id: invoice.invoice_id,
         ...(followupISO ? { schedule_followup_at: followupISO } : {})
-    } as CollectionsAction;
+    } as any; // Cast to any to allow modified return type
 }

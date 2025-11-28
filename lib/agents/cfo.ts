@@ -34,8 +34,8 @@ export async function calculateFinancialMetrics(userId: string) {
         date: { $gte: ninetyDaysAgo }
     }).lean();
 
-    let totalLiquidity = 0; // Ideally fetch from User model or latest transaction balance
-    // For now, let's try to find the latest transaction to get the balance
+    let totalLiquidity = 0; 
+    // Get latest balance from the most recent transaction
     const latestTxn = await Transaction.findOne({ user_id: userId }).sort({ date: -1 }).lean();
     if (latestTxn && typeof latestTxn.balance_after_transaction === 'number') {
         totalLiquidity = latestTxn.balance_after_transaction;
@@ -162,7 +162,8 @@ export async function onTransaction(
         // Persist Smart Split Notification
         await Notification.create({
             recipientId: txn.user_id,
-            type: "action_required", // New type for actionable notifications
+            type: "ACTION_REQUIRED", // New type for actionable notifications
+            title: "Smart Split Review",
             message: message,
             read: false,
             relatedJobId: txn.transaction_id,
@@ -172,7 +173,8 @@ export async function onTransaction(
                     savings: savings_amount,
                     buffer: buffer_amount
                 },
-                originalAmount: txn.amount
+                originalAmount: txn.amount,
+                actions: actions
             }
         });
 

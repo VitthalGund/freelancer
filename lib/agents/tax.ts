@@ -1,5 +1,6 @@
 // lib/agents/tax.ts
 import { callGemini } from "./ai-client";
+import Transaction from "@/models/Transaction";
 
 export type Txn = {
     transaction_id: string;
@@ -35,35 +36,86 @@ export function shouldTaxAgentAct(txn: Txn, eventType: "txn_ingested" | "month_e
 /**
  * categorizeTransaction: returns category & deductible flag using rules then LLM fallback
  */
+/**
+ * categorizeTransaction: returns category & deductible flag using rules then LLM fallback
+ */
 export async function categorizeTransaction(txn: Txn): Promise<Categorization> {
     const narr = txn.narration || "";
+    let result: Categorization = { transaction_id: txn.transaction_id, category: "Other", deductible: false, notes: "init" };
+    let confidence = 0;
 
+    // 1. Rule-based matching
+    let ruleMatched = false;
     for (const r of RULES) {
         if (r.pattern.test(narr)) {
-            return { transaction_id: txn.transaction_id, category: r.category, deductible: r.deductible, notes: "rule-match" };
+            result = { transaction_id: txn.transaction_id, category: r.category, deductible: r.deductible, notes: "rule-match" };
+            confidence = 100;
+            ruleMatched = true;
+            break;
         }
     }
 
-    const prompt = `
-Classify this expense into one of: "Office/Software", "Travel", "Meals", "Supplies", "Utilities", "Medical", "Other".
-Also say whether it is typically tax-deductible for a freelance sole proprietor in India (yes/no) with a one-line reason.
-Return JSON: {"category":"...","deductible":true,"reason":"..."}.
-NARRATION: "${narr.replace(/\n/g, " ")}"
-AMOUNT: ${txn.amount}
-  `.trim();
+    // 2. AI Fallback
+    if (!ruleMatched) {
+        const prompt = `
+    Classify this expense into one of: "Office/Software", "Travel", "Meals", "Supplies", "Utilities", "Medical", "Other".
+    Also say whether it is typically tax-deductible for a freelance sole proprietor in India (yes/no) with a one-line reason.
+    Return JSON: {"category":"...","deductible":true,"reason":"..."}.
+    NARRATION: "${narr.replace(/\n/g, " ")}"
+    AMOUNT: ${txn.amount}
+      `.trim();
 
-    const gm = await callGemini(prompt, 180);
+        const gm = await callGemini(prompt, 180);
 
+        try {
+            const parsed = JSON.parse(gm.text || "{}");
+            result = {
+                transaction_id: txn.transaction_id,
+                category: parsed.category || "Other",
+                deductible: !!parsed.deductible,
+                notes: parsed.reason || "LLM"
+            };
+            confidence = 85; // Arbitrary high confidence for AI
+        } catch (e) {
+            result = { transaction_id: txn.transaction_id, category: "Other", deductible: false, notes: "fallback" };
+            confidence = 0;
+        }
+    }
+
+    // 3. Update Transaction in DB
     try {
-        const parsed = JSON.parse(gm.text || "{}");
-        return {
-            transaction_id: txn.transaction_id,
-            category: parsed.category || "Other",
-            deductible: !!parsed.deductible,
-            notes: parsed.reason || "LLM"
-        };
+        await Transaction.findOneAndUpdate(
+            { transaction_id: txn.transaction_id },
+            {
+                $set: {
+                    transaction_category: result.category,
+                    isDeductible: result.deductible,
+                    deduction_status: confidence > 80 ? 'auto_verified' : 'needs_review',
+                    deduction_confidence: confidence
+                }
+            }
+        );
+        console.log(`Tax Agent: Updated Txn ${txn.transaction_id} -> ${result.category} (Deductible: ${result.deductible})`);
     } catch (e) {
-        return { transaction_id: txn.transaction_id, category: "Other", deductible: false, notes: "fallback" };
+        console.error("Failed to update transaction with tax info:", e);
+    }
+
+    return result;
+}
+
+/**
+ * Finds transactions that need manual review for tax deduction.
+ */
+export async function findDeductionOpportunities(userId: string) {
+    try {
+        const opportunities = await Transaction.find({
+            user_id: userId,
+            deduction_status: 'needs_review'
+        }).lean();
+        return opportunities;
+    } catch (e) {
+        console.error("Error finding deduction opportunities:", e);
+        return [];
     }
 }
 

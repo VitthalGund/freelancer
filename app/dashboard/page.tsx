@@ -95,7 +95,29 @@ export default async function DashboardPage() {
 
   // 6. User Profile (for completeness/credibility)
   const user = await User.findOne({ userId }).lean();
-  const credibilityScore = (user as any)?.credibilityScore || 0;
+  let credibilityScore = (user as any)?.credibilityScore || 0;
+
+  // Calculate and update credibility score if not set or 0
+  if (!credibilityScore || credibilityScore === 0) {
+    try {
+        const { calculateCredibilityScore } = await import("@/lib/scoring-service");
+        const skillsCount = (user as any)?.skills?.length || 0;
+        const experienceYears = (user as any)?.experienceYears || 0;
+        
+        const { score } = await calculateCredibilityScore(userId, skillsCount, experienceYears);
+        credibilityScore = score;
+        
+        // Update user profile with calculated score
+        await User.findOneAndUpdate(
+          { userId },
+          { $set: { credibilityScore: score } }
+        );
+        
+        console.log(`✓ Credibility score calculated and saved for ${userId}: ${score}`);
+    } catch (error) {
+        console.error("Failed to calculate credibility score:", error);
+    }
+  }
 
   return (
     <div className="min-h-screen bg-background text-foreground flex">
