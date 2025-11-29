@@ -11,6 +11,15 @@ const JobSchema = new mongoose.Schema({
     job_description: { type: String, required: true },
     skills: [{ type: String }],
     required_hours_estimate: { type: Number },
+    days_to_complete: { 
+        type: Number, 
+        required: true,
+        min: [1, 'Days to complete must be at least 1 day'],
+        validate: {
+            validator: Number.isInteger,
+            message: 'Days to complete must be a whole number'
+        }
+    },
     deadline: { type: Date },
     job_status: { type: String, default: "Open" },
     clientId: { type: String, required: true }, // User ID of the client

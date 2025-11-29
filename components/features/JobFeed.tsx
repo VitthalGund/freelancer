@@ -103,7 +103,15 @@ export function JobFeed({ initialJobs }: JobFeedProps) {
               {job.title}
             </h4>
             <div className="flex items-center justify-between text-xs text-muted-foreground mt-3">
-              <span>Match: <span className="text-white font-medium">{job.match_score || 95}%</span></span>
+              <div className="flex items-center gap-3">
+                <span>Match: <span className="text-white font-medium">{job.match_score || 95}%</span></span>
+                {(job as any).days_to_complete && (
+                  <span className="flex items-center gap-1">
+                    <span className="text-blue-400">📅</span>
+                    <span className="text-white font-medium">{(job as any).days_to_complete} days</span>
+                  </span>
+                )}
+              </div>
               {(job as any).hasDraft && (
                   <span className="text-xs font-medium px-2 py-1 rounded-full bg-yellow-500/20 text-yellow-500 border border-yellow-500/20">
                     Draft Ready

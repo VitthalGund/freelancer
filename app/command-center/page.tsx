@@ -152,7 +152,7 @@ export default function CommandCenterPage() {
                           </div>
                         </div>
                         <Badge variant="outline" className="bg-background/50">
-                          {action.agent === "Hunter" ? `${action.payload?.meta?.match_score}% Match` : "High Priority"}
+                          {action.agent === "Hunter" ? `${action.payload?.meta?.match_score ?? 95}% Match` : "High Priority"}
                         </Badge>
                       </div>
                     </CardHeader>

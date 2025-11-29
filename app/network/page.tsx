@@ -17,9 +17,9 @@ export default function NetworkPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`http://localhost:8000/api/graph/summary${force ? "?force=true" : ""}`);
+      const res = await fetch(`/api/graph/summary${force ? "?force=true" : ""}`);
       if (!res.ok) {
-        throw new Error("Failed to connect to backend. Is it running?");
+        throw new Error("Failed to load network data");
       }
       const json = await res.json();
       setData(json);
@@ -42,8 +42,8 @@ export default function NetworkPage() {
     // Fetch detailed subgraph if needed
     try {
         const endpoint = node.type === 'company' 
-            ? `http://localhost:8000/api/company/${node.id}`
-            : `http://localhost:8000/api/freelancer/${node.id}`;
+            ? `/api/company/${node.id}`
+            : `/api/freelancer/${node.id}`;
             
         const res = await fetch(endpoint);
         if(res.ok) {
