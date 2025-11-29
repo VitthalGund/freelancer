@@ -11,14 +11,14 @@ export async function GET() {
             return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
         }
 
-        const userId = (session.user as any).userId || (session.user as any).id;
+        const userId = (session.user as any).id;
         await dbConnect();
 
         const metrics = await calculateFinancialMetrics(userId);
         const tax = await calculateTaxLiability(userId);
 
         return NextResponse.json({
-            revenue: metrics.liquidity, // Using liquidity as a proxy for available funds/revenue in this context, or we can add totalRevenue to metrics
+            revenue: tax.totalIncome, // Use actual total income for the year
             taxSaved: tax.estimatedTaxDue, // Renaming for frontend compatibility or updating frontend
             burnRate: metrics.burnRate,
             runwayDays: metrics.runwayDays,

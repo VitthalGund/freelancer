@@ -25,26 +25,13 @@ export async function POST(req: Request) {
     const hashedPassword = await bcrypt.hash(password, salt);
 
     // 4. Generate Custom IDs
-    // Find the latest user to increment ID
-    const lastUser = await User.findOne({}, {}, { sort: { 'createdAt': -1 } });
-
-    let nextIdNum = 100; // Start from 100 to avoid collision with static CSV data (which goes up to ~50)
-    if (lastUser && lastUser.userId) {
-        const lastIdStr = lastUser.userId.replace('user_', '');
-        const lastIdNum = parseInt(lastIdStr);
-        if (!isNaN(lastIdNum)) {
-            nextIdNum = lastIdNum + 1;
-        }
-    }
-
-    const userId = `user_${nextIdNum.toString().padStart(3, '0')}`;
+    // Use timestamp to ensure uniqueness and avoid race conditions/collisions
+    const timestamp = Date.now();
+    const userId = `user_${timestamp}`;
     let companyId = undefined;
 
     if (role === 'client') {
-        // For simplicity, let's keep companyId sync with userId number or independent?
-        // Let's make it independent or just use the same number for simplicity if they are the first user of that company.
-        // But here we assume 1 user = 1 company for the "Client" role in this context.
-        companyId = `company_${nextIdNum.toString().padStart(3, '0')}`;
+        companyId = `company_${timestamp}`;
     }
 
     // 5. Create User

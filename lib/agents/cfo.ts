@@ -72,11 +72,13 @@ export async function calculateTaxLiability(userId: string) {
     const startYear = now.getMonth() >= 3 ? currentYear : currentYear - 1;
     const fyStart = new Date(`${startYear}-04-01`);
 
+    console.log(`Calculating tax for user: ${userId}, Start Date: ${fyStart.toISOString()}`);
     const transactions = await Transaction.find({
         user_id: userId,
         date: { $gte: fyStart },
-        $or: [{ type: 'CREDIT' }, { transaction_type: 'CREDIT' }]
+        transaction_type: 'CREDIT'
     }).lean();
+    console.log(`Found ${transactions.length} transactions for tax calculation.`);
 
     let totalIncome = 0;
     transactions.forEach((t: any) => {
@@ -86,7 +88,7 @@ export async function calculateTaxLiability(userId: string) {
     // Simple 30% estimation
     const estimatedTaxDue = Math.round(totalIncome * 0.3);
 
-    return { estimatedTaxDue };
+    return { estimatedTaxDue, totalIncome };
 }
 
 /**

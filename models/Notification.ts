@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+import mongoose from "mongoose"; // Schema updated
 import crypto from "crypto";
 
 const NotificationSchema = new mongoose.Schema({
